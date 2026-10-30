@@ -1,0 +1,86 @@
+# git-cliff configuration: Keep a Changelog 1.1.0 + Semantic Versioning.
+# Docs: https://git-cliff.org/docs/configuration
+
+[changelog]
+header = """
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+\n"""
+body = """
+{% if version -%}
+## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else -%}
+## [Unreleased]
+{% endif -%}
+{% for group, commits in commits | group_by(attribute="group") %}
+### {{ group | striptags | trim | upper_first }}
+{% for commit in commits %}
+- {% if commit.scope %}**{{ commit.scope }}:** {% endif %}{{ commit.message | upper_first }}\
+{% endfor %}
+{% endfor %}
+\n"""
+footer = """
+{% for release in releases -%}
+{% if loop.first -%}
+{% if release.version -%}
+[unreleased]: https://github.com/Jensovic/dbmysync-addin/compare/{{ release.version }}...HEAD
+{% elif release.previous and release.previous.version -%}
+[unreleased]: https://github.com/Jensovic/dbmysync-addin/compare/{{ release.previous.version }}...HEAD
+{% endif -%}
+{% endif -%}
+{% if release.version -%}
+{% if release.previous and release.previous.version -%}
+[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/Jensovic/dbmysync-addin/compare/{{ release.previous.version }}...{{ release.version }}
+{% else -%}
+[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/Jensovic/dbmysync-addin/releases/tag/{{ release.version }}
+{% endif -%}
+{% endif -%}
+{% endfor %}
+"""
+trim = true
+
+[git]
+conventional_commits = true
+# Pre-convention history is mapped by the last parsers below instead of dropped.
+filter_unconventional = false
+split_commits = false
+protect_breaking_commits = true
+filter_commits = false
+tag_pattern = "v[0-9]*"
+sort_commits = "oldest"
+# Reword the pre-convention commits for the backfilled history.
+commit_preprocessors = [
+  { pattern = '^Initial commit - DbMySync Endpoint v1\.0\.0$', replace = "Initial release of the DbMySync endpoint" },
+  { pattern = '^Initial commit: DbMySync Endpoint - PHP 7\.4\+ Support$', replace = "Support PHP 7.4+" },
+  { pattern = '^Merge with remote and update to PHP 7\.4\+ compatibility$', replace = "Update to PHP 7.4+ compatibility" },
+  { pattern = '^Order of mysql columns$', replace = "Order of MySQL columns" },
+]
+commit_parsers = [
+  # Breaking changes always show up, whatever their type.
+  { message = '^[a-z]+(\([^)]*\))?!:', group = "Changed" },
+  { body = "BREAKING CHANGE", group = "Changed" },
+  # Housekeeping never appears in the changelog and never triggers a release.
+  { message = '^chore\(release\)', skip = true },
+  { message = '^(docs|style|test|build|ci|chore)(\(.*\))?:', skip = true },
+  # Keep a Changelog sections.
+  { message = '^feat', group = "Added" },
+  { message = '^fix', group = "Fixed" },
+  { message = '^security', group = "Security" },
+  { message = '^deprecat', group = "Deprecated" },
+  { message = '^(refactor|perf)', group = "Changed" },
+  { message = '^revert', group = "Removed" },
+  # Legacy, pre-convention commits (kept so the backfilled history is reproducible).
+  { message = '^(Initial commit$|Merge branch)', skip = true },
+  { message = '^(Initial release|Support PHP)', group = "Added" },
+  { message = '^(Update to PHP|Order of MySQL)', group = "Changed" },
+  # Anything else is not conventional: ignore.
+  { message = '.*', skip = true },
+]
+
+[bump]
+# Defaults: feat -> minor, fix and everything else -> patch, breaking -> major.
+initial_tag = "v1.0.0"

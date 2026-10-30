@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  # Step 1: a maintainer starts a release; this opens a release PR.
+  workflow_dispatch:
+  # Step 2: when that PR is merged, the tag and GitHub Release are created.
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Open release PR
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Compute next version
+        id: next
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --bumped-version
+
+      - name: Check there is something to release
+        id: notes
+        uses: orhun/git-cliff-action@v4
+        with:
+          config: cliff.toml
+          args: --unreleased --strip all
+
+      - name: Regenerate CHANGELOG.md
+        uses: orhun/git-cliff-action@v4
+        env:
+          # Whole file is regenerated; cliff.toml is the single source of truth.
+          OUTPUT: CHANGELOG.md
+        with:
+          config: cliff.toml
+          args: --tag ${{ steps.next.outputs.content }}
+
+      - name: Commit CHANGELOG.md and open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.next.outputs.content }}
+          NOTES: ${{ steps.notes.outputs.content }}
+        run: |
+          if [ -z "$(echo "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "No releasable commits (feat/fix/perf/refactor/...) since the last tag." >&2
+            exit 1
+          fi
+          VERSION="$(echo "$VERSION" | tr -d '[:space:]')"
+          BRANCH="release/${VERSION}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -c "$BRANCH"
+          git add CHANGELOG.md
+          git commit -m "chore(release): ${VERSION}"
+          git push origin "$BRANCH"
+          gh pr create --base main --head "$BRANCH" \
+            --title "chore(release): ${VERSION}" \
+            --body "Release ${VERSION}. Merge with **Squash and merge** (keep the title) to tag and publish."
+
+  publish:
+    name: Tag and publish
+    if: "github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release): v')"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create tag and GitHub Release from CHANGELOG.md
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="$(sed -n 's/^## \[\([0-9][^]]*\)\].*/\1/p' CHANGELOG.md | head -n1)"
+          [ -n "$VERSION" ] || { echo "No version found in CHANGELOG.md" >&2; exit 1; }
+          if gh release view "v${VERSION}" >/dev/null 2>&1; then
+            echo "v${VERSION} already released, nothing to do."
+            exit 0
+          fi
+          awk -v v="$VERSION" '
+            $0 ~ "^## \\[" v "\\]" { on=1; next }
+            on && /^## \[/ { exit }
+            on && /^\[.*\]: / { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          gh release create "v${VERSION}" --target "$GITHUB_SHA" \
+            --title "v${VERSION}" --notes-file notes.md

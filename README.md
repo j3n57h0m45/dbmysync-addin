@@ -72,3 +72,8 @@ GET /endpoint.php?action=schema&table=users
 
 MIT
 
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the commit convention and release process.
+Changes are documented in [CHANGELOG.md](CHANGELOG.md).

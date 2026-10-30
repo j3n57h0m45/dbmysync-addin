@@ -1,0 +1,32 @@
+name: PR title
+
+# Runs on pull_request_target so it also works for fork PRs. It never checks
+# out or executes code from the PR; it only reads the title.
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  conventional-commits:
+    name: Conventional Commits title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            perf
+            refactor
+            revert
+            docs
+            style
+            test
+            build
+            ci
+            chore
