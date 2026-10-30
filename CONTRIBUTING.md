@@ -3,8 +3,8 @@
 ## Commit convention
 
 This project follows [Conventional Commits](https://www.conventionalcommits.org/) and
-[Semantic Versioning](https://semver.org/). Pull requests are **squash-merged**, so the
-**PR title** becomes the commit on `main` and is checked by CI:
+[Semantic Versioning](https://semver.org/). Commits on `main` should look like this.
+Pull request titles are checked by CI (so they can be squash-merged as is):
 
     <type>(optional scope): <description>
 
@@ -13,20 +13,23 @@ This project follows [Conventional Commits](https://www.conventionalcommits.org/
 | `feat` | Added | minor |
 | `fix` | Fixed | patch |
 | `perf`, `refactor` | Changed | patch |
-| `security` | Security | patch |
-| `deprecate` | Deprecated | patch |
-| `revert` | Removed | patch |
+| `revert` | Fixed | patch |
 | `docs`, `style`, `test`, `build`, `ci`, `chore` | (not listed) | none |
 
 A `!` after the type (`feat!: ...`) or a `BREAKING CHANGE:` footer triggers a **major** bump.
 
 ## Releasing (maintainers)
 
-1. Run the **Release** workflow (Actions tab, "Run workflow") on `main`.
-2. It computes the next version with [git-cliff](https://git-cliff.org), regenerates
-   `CHANGELOG.md` ([Keep a Changelog](https://keepachangelog.com/) format, see `cliff.toml`)
-   and opens a `chore(release): vX.Y.Z` pull request.
-3. Review the changelog, then **squash-merge** it keeping the title.
-4. The merge creates the `vX.Y.Z` tag and a GitHub Release with that version's notes.
+Run the **Release** workflow (Actions tab, "Run workflow") on `main`. It:
+
+1. checks that every commit since the last tag follows the convention (fails with a list otherwise),
+2. computes the next version with [git-cliff](https://git-cliff.org) and regenerates `CHANGELOG.md`
+   ([Keep a Changelog](https://keepachangelog.com/) format, see `cliff.toml`),
+3. commits `chore(release): vX.Y.Z`, tags it and pushes both to `main`,
+4. creates the GitHub Release with that version's notes.
+
+The PR-title check only runs on pull requests. Direct pushes to `main` are not checked
+until release time, so a bad subject shows up as a failed release run. Commits that are not
+Conventional Commits never appear in the changelog and never trigger a version bump.
 
 Never add a `version` field to `composer.json`; Packagist reads versions from the tags.

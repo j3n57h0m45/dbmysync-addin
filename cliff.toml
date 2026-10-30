@@ -24,19 +24,20 @@ body = """
 {% endfor %}
 \n"""
 footer = """
+{% set repo = "https://github.com/Jensovic/dbmysync-addin" -%}
 {% for release in releases -%}
 {% if loop.first -%}
 {% if release.version -%}
-[unreleased]: https://github.com/Jensovic/dbmysync-addin/compare/{{ release.version }}...HEAD
+[unreleased]: {{ repo }}/compare/{{ release.version }}...HEAD
 {% elif release.previous and release.previous.version -%}
-[unreleased]: https://github.com/Jensovic/dbmysync-addin/compare/{{ release.previous.version }}...HEAD
+[unreleased]: {{ repo }}/compare/{{ release.previous.version }}...HEAD
 {% endif -%}
 {% endif -%}
 {% if release.version -%}
 {% if release.previous and release.previous.version -%}
-[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/Jensovic/dbmysync-addin/compare/{{ release.previous.version }}...{{ release.version }}
+[{{ release.version | trim_start_matches(pat="v") }}]: {{ repo }}/compare/{{ release.previous.version }}...{{ release.version }}
 {% else -%}
-[{{ release.version | trim_start_matches(pat="v") }}]: https://github.com/Jensovic/dbmysync-addin/releases/tag/{{ release.version }}
+[{{ release.version | trim_start_matches(pat="v") }}]: {{ repo }}/releases/tag/{{ release.version }}
 {% endif -%}
 {% endif -%}
 {% endfor %}
@@ -55,7 +56,7 @@ sort_commits = "oldest"
 # Reword the pre-convention commits for the backfilled history.
 commit_preprocessors = [
   { pattern = '^Initial commit - DbMySync Endpoint v1\.0\.0$', replace = "Initial release of the DbMySync endpoint" },
-  { pattern = '^Initial commit: DbMySync Endpoint - PHP 7\.4\+ Support$', replace = "Support PHP 7.4+" },
+  { pattern = '^Initial commit: DbMySync Endpoint - PHP 7\.4\+ Support$', replace = "Lowered the minimum PHP version from 8.2 to 7.4" },
   { pattern = '^Merge with remote and update to PHP 7\.4\+ compatibility$', replace = "Update to PHP 7.4+ compatibility" },
   { pattern = '^Order of mysql columns$', replace = "Order of MySQL columns" },
 ]
@@ -69,15 +70,14 @@ commit_parsers = [
   # Keep a Changelog sections.
   { message = '^feat', group = "Added" },
   { message = '^fix', group = "Fixed" },
-  { message = '^security', group = "Security" },
-  { message = '^deprecat', group = "Deprecated" },
   { message = '^(refactor|perf)', group = "Changed" },
-  { message = '^revert', group = "Removed" },
+  { message = '^revert', group = "Fixed" },
   # Legacy, pre-convention commits (kept so the backfilled history is reproducible).
   { message = '^(Initial commit$|Merge branch)', skip = true },
-  { message = '^(Initial release|Support PHP)', group = "Added" },
-  { message = '^(Update to PHP|Order of MySQL)', group = "Changed" },
-  # Anything else is not conventional: ignore.
+  { message = '^Initial release', group = "Added" },
+  { message = '^(Lowered the minimum PHP|Update to PHP|Order of MySQL)', group = "Changed" },
+  # Anything else is not conventional: ignored (not listed, no version bump).
+  # The release workflow rejects such commits, except pre-convention history.
   { message = '.*', skip = true },
 ]
 
