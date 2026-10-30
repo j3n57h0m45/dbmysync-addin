@@ -5,7 +5,8 @@ namespace Jensovic\DbMySyncAddin;
 class Endpoint
 {
     private Auth $auth;
-    private SchemaReader $schemaReader;
+    private array $config;
+    private ?SchemaReader $schemaReader = null;
 
     public function __construct(array $config)
     {
@@ -19,12 +20,24 @@ class Endpoint
 
         // Initialize components
         $this->auth = new Auth($config['secret']);
-        $this->schemaReader = new SchemaReader(
-            $config['db_host'],
-            $config['db_name'],
-            $config['db_user'],
-            $config['db_pass']
-        );
+        $this->config = $config;
+    }
+
+    /**
+     * Create the database connection lazily (only after authentication)
+     */
+    private function getSchemaReader(): SchemaReader
+    {
+        if ($this->schemaReader === null) {
+            $this->schemaReader = new SchemaReader(
+                $this->config['db_host'],
+                $this->config['db_name'],
+                $this->config['db_user'],
+                $this->config['db_pass']
+            );
+        }
+
+        return $this->schemaReader;
     }
 
     /**
@@ -63,7 +76,8 @@ class Endpoint
                     Response::error("Unknown action: {$action}", 404);
             }
         } catch (\Exception $e) {
-            Response::error($e->getMessage(), 500);
+            error_log('DbMySync: ' . $e->getMessage());
+            Response::error('Internal server error', 500);
         }
     }
 
@@ -88,11 +102,11 @@ class Endpoint
 
         if ($table) {
             // Get specific table schema
-            $schema = $this->schemaReader->getTableSchema($table);
+            $schema = $this->getSchemaReader()->getTableSchema($table);
             Response::success($schema);
         } else {
             // Get all tables schema
-            $schema = $this->schemaReader->getSchema();
+            $schema = $this->getSchemaReader()->getSchema();
             Response::success([
                 'tables' => $schema
             ]);
